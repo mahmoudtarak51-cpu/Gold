@@ -1,0 +1,323 @@
+openapi: 3.1.0
+info:
+  title: Gold Price Reporter API
+  version: 1.0.0
+  description: >
+    Public and protected HTTP contracts for the Gold Price Web Application.
+    Public routes power the dashboard auto-refresh, historical charts, and
+    conversion calculator. Internal routes are protected and reserved for
+    scheduler-driven ingestion.
+servers:
+  - url: http://localhost:3000
+paths:
+  /api/market/current:
+    get:
+      summary: Get the current gold market snapshot
+      operationId: getCurrentMarketSnapshot
+      responses:
+        '200':
+          description: Current market snapshot returned successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CurrentMarketResponse'
+        '503':
+          description: No trustworthy market snapshot is available
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /api/market/history:
+    get:
+      summary: Get chartable historical gold data
+      operationId: getMarketHistory
+      parameters:
+        - in: query
+          name: range
+          required: true
+          schema:
+            type: string
+            enum: [intraday, 7d, 30d, 1y, all]
+        - in: query
+          name: currency
+          required: true
+          schema:
+            type: string
+            enum: [USD, EGP]
+      responses:
+        '200':
+          description: Historical series returned successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HistoryResponse'
+        '400':
+          description: Invalid range or currency query
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '503':
+          description: Historical data cannot be served with sufficient trust
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /api/market/convert:
+    get:
+      summary: Calculate an indicative gold value for a weight and purity
+      operationId: getConversionQuote
+      parameters:
+        - in: query
+          name: weight
+          required: true
+          schema:
+            type: number
+            exclusiveMinimum: 0
+            maximum: 100000
+        - in: query
+          name: unit
+          required: true
+          schema:
+            type: string
+            enum: [toz, g, kg]
+        - in: query
+          name: purity
+          required: true
+          schema:
+            type: string
+            enum: [24k, 22k, 21k, 18k]
+        - in: query
+          name: currency
+          required: true
+          schema:
+            type: string
+            enum: [USD, EGP]
+      responses:
+        '200':
+          description: Conversion quote returned successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ConversionResponse'
+        '400':
+          description: Invalid conversion input
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '503':
+          description: No trustworthy snapshot available for calculation
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /api/internal/ingest:
+    post:
+      summary: Trigger market snapshot ingestion
+      operationId: postInternalIngest
+      security:
+        - CronSecret: []
+      responses:
+        '202':
+          description: Ingestion request accepted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/IngestResponse'
+        '401':
+          description: Missing or invalid scheduler secret
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '502':
+          description: Provider fetch failed during ingestion
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+components:
+  securitySchemes:
+    CronSecret:
+      type: apiKey
+      in: header
+      name: x-cron-secret
+  schemas:
+    FreshnessState:
+      type: string
+      enum: [fresh, delayed, stale, unavailable]
+    SourceNotice:
+      type: object
+      required:
+        - label
+        - sourceName
+        - sourceEndpoint
+        - lastUpdatedAt
+        - freshnessState
+        - disclaimer
+      properties:
+        label:
+          type: string
+        sourceName:
+          type: string
+        sourceEndpoint:
+          type: string
+        lastUpdatedAt:
+          type: string
+          format: date-time
+        freshnessState:
+          $ref: '#/components/schemas/FreshnessState'
+        disclaimer:
+          type: string
+    CurrentMarketData:
+      type: object
+      required:
+        - snapshotAt
+        - goldUsdPerToz
+        - goldEgpPerToz
+        - goldUsdPerGram
+        - goldEgpPerGram
+        - goldUsdPerKg
+        - goldEgpPerKg
+        - dayChangeAbsUsd
+        - dayChangePctUsd
+        - sourceNotice
+      properties:
+        snapshotAt:
+          type: string
+          format: date-time
+        goldUsdPerToz:
+          type: number
+        goldEgpPerToz:
+          type: number
+        goldUsdPerGram:
+          type: number
+        goldEgpPerGram:
+          type: number
+        goldUsdPerKg:
+          type: number
+        goldEgpPerKg:
+          type: number
+        dayChangeAbsUsd:
+          type: number
+        dayChangePctUsd:
+          type: number
+        sourceNotice:
+          $ref: '#/components/schemas/SourceNotice'
+    CurrentMarketResponse:
+      type: object
+      required:
+        - data
+      properties:
+        data:
+          $ref: '#/components/schemas/CurrentMarketData'
+    HistoryPoint:
+      type: object
+      required:
+        - pointAt
+        - currency
+        - valuePerToz
+      properties:
+        pointAt:
+          type: string
+          format: date-time
+        currency:
+          type: string
+          enum: [USD, EGP]
+        valuePerToz:
+          type: number
+    HistoryData:
+      type: object
+      required:
+        - range
+        - currency
+        - points
+        - sourceNotice
+      properties:
+        range:
+          type: string
+          enum: [intraday, 7d, 30d, 1y, all]
+        currency:
+          type: string
+          enum: [USD, EGP]
+        points:
+          type: array
+          items:
+            $ref: '#/components/schemas/HistoryPoint'
+        sourceNotice:
+          $ref: '#/components/schemas/SourceNotice'
+    HistoryResponse:
+      type: object
+      required:
+        - data
+      properties:
+        data:
+          $ref: '#/components/schemas/HistoryData'
+    ConversionData:
+      type: object
+      required:
+        - requestedWeight
+        - unit
+        - purity
+        - currency
+        - spotValue
+        - snapshotAt
+        - sourceNotice
+      properties:
+        requestedWeight:
+          type: number
+        unit:
+          type: string
+          enum: [toz, g, kg]
+        purity:
+          type: string
+          enum: [24k, 22k, 21k, 18k]
+        currency:
+          type: string
+          enum: [USD, EGP]
+        spotValue:
+          type: number
+        snapshotAt:
+          type: string
+          format: date-time
+        sourceNotice:
+          $ref: '#/components/schemas/SourceNotice'
+    ConversionResponse:
+      type: object
+      required:
+        - data
+      properties:
+        data:
+          $ref: '#/components/schemas/ConversionData'
+    IngestResponse:
+      type: object
+      required:
+        - status
+        - runId
+        - acceptedAt
+      properties:
+        status:
+          type: string
+          enum: [accepted]
+        runId:
+          type: string
+          format: uuid
+        acceptedAt:
+          type: string
+          format: date-time
+    ErrorResponse:
+      type: object
+      required:
+        - error
+      properties:
+        error:
+          type: object
+          required:
+            - code
+            - message
+          properties:
+            code:
+              type: string
+            message:
+              type: string

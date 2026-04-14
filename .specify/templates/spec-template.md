@@ -72,8 +72,24 @@
   Fill them out with the right edge cases.
 -->
 
-- What happens when [boundary condition]?
-- How does system handle [error scenario]?
+- What happens when the gold-price source is delayed, unavailable, or returns partial data?
+- How does the system handle stale exchange rates, inconsistent units, or conversion failures?
+- How does the user experience change when the last-known-good value must be shown with a warning?
+
+## Data Sources & Trust Signals *(mandatory when external data is displayed)*
+
+<!--
+  ACTION REQUIRED: Explicitly describe where displayed numbers come from and how
+  users can judge freshness and reliability.
+-->
+
+- **Primary Displayed Metrics**: [e.g., spot gold price per ounce, price per gram]
+- **Canonical Gold Source**: [provider name or NEEDS CLARIFICATION]
+- **Canonical FX Source**: [provider name for USD/EGP conversion or NEEDS CLARIFICATION]
+- **Refresh Cadence**: [e.g., every 60 seconds or NEEDS CLARIFICATION]
+- **Stale Threshold**: [e.g., show stale banner after 5 minutes or NEEDS CLARIFICATION]
+- **Fallback Behavior**: [e.g., last-known-good with warning, partial render, hard error]
+- **User Trust Signals**: [e.g., source label, last updated timestamp, disclaimer]
 
 ## Requirements *(mandatory)*
 
@@ -89,11 +105,13 @@
 - **FR-003**: Users MUST be able to [key interaction, e.g., "reset their password"]
 - **FR-004**: System MUST [data requirement, e.g., "persist user preferences"]
 - **FR-005**: System MUST [behavior, e.g., "log all security events"]
+- **FR-006**: System MUST expose source attribution and last-updated information for all user-visible market data.
+- **FR-007**: System MUST define behavior for stale, delayed, or unavailable upstream data.
 
 *Example of marking unclear requirements:*
 
-- **FR-006**: System MUST authenticate users via [NEEDS CLARIFICATION: auth method not specified - email/password, SSO, OAuth?]
-- **FR-007**: System MUST retain user data for [NEEDS CLARIFICATION: retention period not specified]
+- **FR-008**: System MUST authenticate users via [NEEDS CLARIFICATION: auth method not specified - email/password, SSO, OAuth?]
+- **FR-009**: System MUST retain user data for [NEEDS CLARIFICATION: retention period not specified]
 
 ### Key Entities *(include if feature involves data)*
 
@@ -125,4 +143,5 @@
 - [Assumption about target users, e.g., "Users have stable internet connectivity"]
 - [Assumption about scope boundaries, e.g., "Mobile support is out of scope for v1"]
 - [Assumption about data/environment, e.g., "Existing authentication system will be reused"]
+- [Assumption about source reliability, e.g., "Upstream gold and FX providers expose timestamps or enough metadata to infer freshness"]
 - [Dependency on existing system/service, e.g., "Requires access to the existing user profile API"]
